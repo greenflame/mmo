@@ -1,0 +1,14 @@
+{
+  "name": "mmo",
+  "version": "1.0.0",
+  "description": "mmo test",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.14.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alexander Kolesov",
+  "license": "ISC"
+}
