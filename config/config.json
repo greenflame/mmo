@@ -1,5 +1,5 @@
 {
-  "express": {
+  "server": {
     "port": 3000
   }
 }
