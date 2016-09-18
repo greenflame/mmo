@@ -1,4 +1,5 @@
 let express = require('express');
+let Joi = require('joi');
 let app = express();
 let server = require('http').createServer(app);
 let io = require('socket.io')(server);
@@ -37,8 +38,6 @@ io.on('connection', (socket) => {
   };
 
   socket.emit('serverState', serverState);
-
-  // Send info to others
   socket.broadcast.emit('playerConnected', socket.player);
 
   // On disconnect
@@ -49,8 +48,26 @@ io.on('connection', (socket) => {
 
   // On motion
   socket.on('playerMoved', (newPos) => {
-    socket.player.position = newPos;
-    io.emit('playerMoved', socket.player);
+    Joi.validate(newPos, {
+      x: Joi.number().integer().required().min(-20).max(20),
+      y: Joi.number().integer().required().min(-20).max(20)
+    }, (err) => {
+      if (err) {
+        logger.info('Invalid motion object');
+      }
+
+      let oldPos = socket.player.position;
+
+      if (Math.abs(newPos.x - oldPos.x) + Math.abs(newPos.y - oldPos.y) !== 1) {
+        logger.info('Invalid motion');
+      }
+
+      socket.player.position = newPos;
+      io.emit('playerMoved', {
+        playerId: socket.player.id,
+        newPos: newPos
+      });
+    });
   });
 });
 

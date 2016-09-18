@@ -94,52 +94,46 @@ function initTerrain() {
   }, 10);
 }
 
-function initPlayer() {
+function initController() {
   $(document).keypress(function(event) {
+    var isMoved = false;
+
     if (event.which === 97) {   // Left
-      socket.emit('playerMoved', {
-        'x': players[playerId].position.x - 1,
-        'y': players[playerId].position.y
-      });
-      console.log('left');
+      isMoved = true;
+      players[playerId].position.x -= 1;
     }
     if (event.which === 100) {  // Right
-      socket.emit('playerMoved', {
-        'x': players[playerId].position.x + 1,
-        'y': players[playerId].position.y
-      });
-      console.log('right');
+      isMoved = true;
+      players[playerId].position.x += 1;
     }
     if (event.which === 119) {  // Up
-      socket.emit('playerMoved', {
-        'x': players[playerId].position.x,
-        'y': players[playerId].position.y + 1
-      });
-      console.log('forward');
+      isMoved = true;
+      players[playerId].position.y += 1;
     }
     if (event.which === 115) {  // Down
-      socket.emit('playerMoved', {
-        'x': players[playerId].position.x,
-        'y': players[playerId].position.y - 1
-      });
-      console.log('backward');
+      isMoved = true;
+      players[playerId].position.y -= 1;
+    }
+
+    if (isMoved) {
+      socket.emit('playerMoved', players[playerId].position);
     }
   });
 }
 
 function createGeometryForPlayer(id) {
-  var geometry = new THREE.PlaneGeometry(1, 1);
-  player = new THREE.Mesh(geometry, materials.sand);
-  player.position.x = players[id].position.x;
-  player.position.y = players[id].position.y;
-  player.position.z = 0.1;
-  scene.add(player);
-  players[id].object = player;
+  var playerGeometry = new THREE.PlaneGeometry(1, 1);
+  var playerMesh = new THREE.Mesh(playerGeometry, materials.sand);
+  playerMesh.position.x = players[id].position.x;
+  playerMesh.position.y = players[id].position.y;
+  playerMesh.position.z = 0.1;
+  scene.add(playerMesh);
+  players[id].mesh = playerMesh;
 }
 
 function updateGeometryForPlayer(id) {
-  players[id].object.position.x = players[id].position.x;
-  players[id].object.position.y = players[id].position.y;
+  players[id].mesh.position.x = players[id].position.x;
+  players[id].mesh.position.y = players[id].position.y;
 
   if (id == playerId) {
     camera.position.x = players[id].position.x;
@@ -148,7 +142,7 @@ function updateGeometryForPlayer(id) {
 }
 
 function deleteGeometryForPlayer(id) {
-  scene.remove(players[id].object);
+  scene.remove(players[id].mesh);
 }
 
 function connectToServer() {
@@ -167,7 +161,7 @@ function connectToServer() {
 
     socket.on('playerConnected', function(player) {
       players[player.id] = player;
-      createGeometryForPlayer(player.id)
+      createGeometryForPlayer(player.id);
       console.log(players);
     });
 
@@ -177,9 +171,9 @@ function connectToServer() {
       console.log(players);
     });
 
-    socket.on('playerMoved', function(player) {
-      players[player.id].position = player.position;
-      updateGeometryForPlayer(player.id);
+    socket.on('playerMoved', function(motion) {
+      players[motion.playerId].position = motion.newPos;
+      updateGeometryForPlayer(motion.playerId);
       console.log(players);
     });
   });
@@ -195,16 +189,16 @@ function init() {
       initTerrain();
     }).then(function() {
       console.log('Terrain initialized');
-      initPlayer();
-    }).then(function() {
-      console.log('Player initialized');
       connectToServer();
     }).then(function() {
       console.log('Connected to server');
+      initController();
+    }).then(function() {
+      console.log('Controller initialized');
     });
 }
 
-function loop() {
+function loop() {s
   requestAnimationFrame(loop);
   renderer.render(scene, camera);
 }
