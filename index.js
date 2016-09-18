@@ -11,16 +11,46 @@ let loggerMiddleware = require('./utils/loggerMiddleware');
 app.use(loggerMiddleware);
 app.use('/', express.static(__dirname + '/public'));
 
-io.on('connection', (socket) => {
-  console.log('a user connected');
 
+io.on('connection', (socket) => {
+  logger.info('A player connected');
+
+  // Init player
+  socket.player = {
+    'id': socket.id,
+    'position': {
+      'x': 0,
+      'y': 0
+    }
+  };
+
+  // Send id and server state
+  let players = [];
+
+  for (var i in io.sockets.connected) {
+    players.push(io.sockets.connected[i].player);
+  }
+
+  let serverState =  {
+    'id': socket.player.id,
+    'players': players
+  };
+
+  socket.emit('serverState', serverState);
+
+  // Send info to others
+  socket.broadcast.emit('playerConnected', socket.player);
+
+  // On disconnect
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    logger.info('Player disconnected');
+    io.emit('playerDisconnected', socket.player.id);
   });
 
-  socket.on('chat message', function(msg){
-    console.log('message: ' + msg);
-    io.emit('chat message', msg);
+  // On motion
+  socket.on('playerMoved', (newPos) => {
+    socket.player.position = newPos;
+    io.emit('playerMoved', socket.player);
   });
 });
 

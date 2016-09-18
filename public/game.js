@@ -8,6 +8,10 @@ var materials = {
   'sand': null
 };
 
+var socket = null;
+var players = {};
+var playerId = null;
+
 function loadTexture(loader, resource) {
   return new Promise(function(resolve, reject) {
     loader.load(
@@ -90,6 +94,97 @@ function initTerrain() {
   }, 10);
 }
 
+function initPlayer() {
+  $(document).keypress(function(event) {
+    if (event.which === 97) {   // Left
+      socket.emit('playerMoved', {
+        'x': players[playerId].position.x - 1,
+        'y': players[playerId].position.y
+      });
+      console.log('left');
+    }
+    if (event.which === 100) {  // Right
+      socket.emit('playerMoved', {
+        'x': players[playerId].position.x + 1,
+        'y': players[playerId].position.y
+      });
+      console.log('right');
+    }
+    if (event.which === 119) {  // Up
+      socket.emit('playerMoved', {
+        'x': players[playerId].position.x,
+        'y': players[playerId].position.y + 1
+      });
+      console.log('forward');
+    }
+    if (event.which === 115) {  // Down
+      socket.emit('playerMoved', {
+        'x': players[playerId].position.x,
+        'y': players[playerId].position.y - 1
+      });
+      console.log('backward');
+    }
+  });
+}
+
+function createGeometryForPlayer(id) {
+  var geometry = new THREE.PlaneGeometry(1, 1);
+  player = new THREE.Mesh(geometry, materials.sand);
+  player.position.x = players[id].position.x;
+  player.position.y = players[id].position.y;
+  player.position.z = 0.1;
+  scene.add(player);
+  players[id].object = player;
+}
+
+function updateGeometryForPlayer(id) {
+  players[id].object.position.x = players[id].position.x;
+  players[id].object.position.y = players[id].position.y;
+
+  if (id == playerId) {
+    camera.position.x = players[id].position.x;
+    camera.position.y = players[id].position.y;
+  }
+}
+
+function deleteGeometryForPlayer(id) {
+  scene.remove(players[id].object);
+}
+
+function connectToServer() {
+  socket = io();
+
+  socket.on('serverState', function(state) {
+    console.log('Server state accepted');
+
+    playerId = state.id;
+    state.players.forEach(function(player) {
+      players[player.id] = player;
+      createGeometryForPlayer(player.id);
+    });
+
+    console.log(players);
+
+    socket.on('playerConnected', function(player) {
+      players[player.id] = player;
+      createGeometryForPlayer(player.id)
+      console.log(players);
+    });
+
+    socket.on('playerDisconnected', function(id) {
+      deleteGeometryForPlayer(id);
+      delete players[id];
+      console.log(players);
+    });
+
+    socket.on('playerMoved', function(player) {
+      players[player.id].position = player.position;
+      updateGeometryForPlayer(player.id);
+      console.log(players);
+    });
+  });
+}
+
 function init() {
   return loadTextures()
     .then(function() {
@@ -100,6 +195,12 @@ function init() {
       initTerrain();
     }).then(function() {
       console.log('Terrain initialized');
+      initPlayer();
+    }).then(function() {
+      console.log('Player initialized');
+      connectToServer();
+    }).then(function() {
+      console.log('Connected to server');
     });
 }
 
