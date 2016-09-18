@@ -3,9 +3,18 @@ var camera = null;
 var renderer = null;
 
 var materials = {
-  'grass': null,
-  'water': null,
-  'sand': null
+  'flower1': null,
+  'flower2': null,
+  'grass1': null,
+  'grass2': null,
+  'hero1': null,
+  'sand': null,
+  'stone': null,
+  'tree1': null,
+  'tree2': null,
+  'tree3': null,
+  'tree4': null,
+  'water': null
 };
 
 var socket = null;
@@ -61,8 +70,11 @@ function loadTextures() {
 }
 
 function initScene() {
+  var width = window.innerWidth / 40;
+  var height = window.innerHeight / 40;
+
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight , 0.1, 1000);
+  camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0.1, 1000);
   renderer = new THREE.WebGLRenderer();
 
   // Renderer
@@ -82,16 +94,26 @@ function initScene() {
 }
 
 function initTerrain() {
-  var geometry = new THREE.PlaneGeometry(1, 1);
-  var object = new THREE.Mesh(geometry, materials.grass);
-  object.position.x = 0;
-  object.position.y = 0;
-  object.position.z = 0;
-  scene.add(object);
+  return new Promise(function(resolve, reject) {
+    $.get( "map", function(map) {
 
-  setInterval(function() {
-    object.position.x += 0.01;
-  }, 10);
+      for (var i = 0; i < map[0].length; i++) {
+        for (var j = 0; j < map.length; j++) {
+          var tileGeometry = new THREE.PlaneGeometry(1, 1);
+          var tile = new THREE.Mesh(tileGeometry, materials[map[map.length - j - 1][i]]);
+          tile.position.x = i;
+          tile.position.y = j;
+          tile.position.z = 0;
+          scene.add(tile);
+        }
+      }
+
+      resolve();
+    })
+    .fail(function() {
+      reject('Can not load map');
+    })
+  });
 }
 
 function initController() {
@@ -123,7 +145,7 @@ function initController() {
 
 function createGeometryForPlayer(id) {
   var playerGeometry = new THREE.PlaneGeometry(1, 1);
-  var playerMesh = new THREE.Mesh(playerGeometry, materials.sand);
+  var playerMesh = new THREE.Mesh(playerGeometry, materials.hero1);
   playerMesh.position.x = players[id].position.x;
   playerMesh.position.y = players[id].position.y;
   playerMesh.position.z = 0.1;
@@ -157,24 +179,21 @@ function connectToServer() {
       createGeometryForPlayer(player.id);
     });
 
-    console.log(players);
-
     socket.on('playerConnected', function(player) {
       players[player.id] = player;
       createGeometryForPlayer(player.id);
-      console.log(players);
+      console.log('Player connected');
     });
 
     socket.on('playerDisconnected', function(id) {
       deleteGeometryForPlayer(id);
       delete players[id];
-      console.log(players);
+      console.log('Player disconnected');
     });
 
     socket.on('playerMoved', function(motion) {
       players[motion.playerId].position = motion.newPos;
       updateGeometryForPlayer(motion.playerId);
-      console.log(players);
     });
   });
 }
@@ -183,22 +202,22 @@ function init() {
   return loadTextures()
     .then(function() {
       console.log('Textures loaded');
-      initScene();
+      return initScene();
     }).then(function() {
       console.log('Scene initialized');
-      initTerrain();
+      return initTerrain();
     }).then(function() {
       console.log('Terrain initialized');
-      connectToServer();
+      return connectToServer();
     }).then(function() {
       console.log('Connected to server');
-      initController();
+      return initController();
     }).then(function() {
       console.log('Controller initialized');
     });
 }
 
-function loop() {s
+function loop() {
   requestAnimationFrame(loop);
   renderer.render(scene, camera);
 }

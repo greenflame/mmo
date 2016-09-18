@@ -7,9 +7,13 @@ let io = require('socket.io')(server);
 let config = require('./utils/config');
 let logger = require('./utils/logger');
 let loggerMiddleware = require('./utils/loggerMiddleware');
+let mapGenerator = require('./mapGenerator');
 
+
+let map = mapGenerator.generate(100, 100);
 
 app.use(loggerMiddleware);
+app.route('/map').get((req, res) => { res.json(map); });
 app.use('/', express.static(__dirname + '/public'));
 
 
@@ -20,8 +24,8 @@ io.on('connection', (socket) => {
   socket.player = {
     'id': socket.id,
     'position': {
-      'x': 0,
-      'y': 0
+      'x': 50,
+      'y': 50
     }
   };
 
@@ -49,8 +53,8 @@ io.on('connection', (socket) => {
   // On motion
   socket.on('playerMoved', (newPos) => {
     Joi.validate(newPos, {
-      x: Joi.number().integer().required().min(-20).max(20),
-      y: Joi.number().integer().required().min(-20).max(20)
+      x: Joi.number().integer().required(),
+      y: Joi.number().integer().required()
     }, (err) => {
       if (err) {
         logger.info('Invalid motion object');
