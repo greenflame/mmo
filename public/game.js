@@ -1,59 +1,65 @@
-let a = new Promise((res, rej) => {
-  res('he');
-});
+function loadTexture(loader, resource) {
+  return new Promise(function(resolve, reject) {
+    loader.load(
+      resource,
+      function(texture) {
+        resolve(texture);
+      },
+      function(xhr) {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      function(err) {
+        reject(err);
+      }
+    );
+  });
+}
 
-a.then(() => {
-  console.log('yra');
-});
+function run() {
 
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight , 0.1, 1000);
+  var renderer = new THREE.WebGLRenderer();
 
-let f = Promise.coroutine(function*() {
-  yield a;
-});
-
-f();
-
-
-$(() => {
-  let scene = new THREE.Scene();
-  let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight , 0.1, 1000);
-  let renderer = new THREE.WebGLRenderer();
-
-  // Renderer
-  renderer.setClearColor('white');
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  // Scene
-  let axes = new THREE.AxisHelper(20);
-  scene.add(axes);
-
-
-  // instantiate a loader
-  let loader = new THREE.TextureLoader();
-
-  // load a resource
-  loader.load(
-    // resource URL
+  var images = [
+    'textures/grass.png',
+    'textures/water.png',
     'textures/sand.png',
-    // Function when resource is loaded
-    function ( texture ) {
-      console.log('yeah');
+  ];
 
-      texture.magFilter = THREE.NearestFilter;
-      texture.minFilter = THREE.NearestFilter;
+  Promise
+    .resolve()
+    .then(function() { // Loading textures
+      var loader = new THREE.TextureLoader();
 
-      // do something with the texture
-      let material = new THREE.MeshBasicMaterial( {
-        map: texture
-      } );
+      var loaders = images.map(function(textureName) {
+        return loadTexture(loader, textureName);
+      });
 
+      console.log(loaders);
 
-      let geometry = new THREE.PlaneGeometry(10, 10);
+      return Promise.all(loaders);
+    }).then(function(textures) {  // Configuring scene
+      // Renderer
+      renderer.setClearColor('white');
+      renderer.setSize(window.innerWidth, window.innerHeight);
 
-//                    let texture = THREE.ImageUtils.loadTexture( "grass.jpg");
-//                    let material = new THREE.MeshLambertMaterial({ map : texture });
+      // Scene
+      var axes = new THREE.AxisHelper(20);
+      scene.add(axes);
 
-      let object = new THREE.Mesh(geometry,material);
+      // Objects
+      var materials = textures.map(function(texture) {
+        texture.magFilter = THREE.NearestFilter;
+        texture.minFilter = THREE.NearestFilter;
+
+        return new THREE.MeshBasicMaterial({
+          map: texture
+        });
+      });
+
+      var geometry = new THREE.PlaneGeometry(10, 10);
+      var object = new THREE.Mesh(geometry, materials[1]);
       object.position.x = 0;
       object.position.y = 0;
       object.position.z = 0;
@@ -68,14 +74,8 @@ $(() => {
       // Render
       $("#gl-out").append(renderer.domElement);
       renderer.render(scene, camera);
-    },
-    // Function called when download progresses
-    function ( xhr ) {
-      console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
-    },
-    // Function called when download errors
-    function ( xhr ) {
-      console.log( 'An error happened' );
-    }
-  );
-});
+
+    });
+}
+
+$(run());
