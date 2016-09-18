@@ -1,6 +1,6 @@
-var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight , 0.1, 1000);
-var renderer = new THREE.WebGLRenderer();
+var scene = null;
+var camera = null;
+var renderer = null;
 
 var materials = {
   'grass': null,
@@ -57,46 +57,60 @@ function loadTextures() {
 }
 
 function initScene() {
-  return Promise
-    .resolve()
-    .then(function() { // Loading textures
-      return loadTextures();
-    }).then(function() {  // Configuring scene
-      console.log(materials);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight , 0.1, 1000);
+  renderer = new THREE.WebGLRenderer();
 
-      // Renderer
-      renderer.setClearColor('white');
-      renderer.setSize(window.innerWidth, window.innerHeight);
+  // Renderer
+  renderer.setClearColor('white');
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  $("#gl-out").append(renderer.domElement);
 
-      // Scene
-      var axes = new THREE.AxisHelper(20);
-      scene.add(axes);
+  // Axes
+  var axes = new THREE.AxisHelper(20);
+  scene.add(axes);
 
-      // Objects
-      var geometry = new THREE.PlaneGeometry(10, 10);
-      var object = new THREE.Mesh(geometry, materials.grass);
-      object.position.x = 0;
-      object.position.y = 0;
-      object.position.z = 0;
-      scene.add(object);
+  // Camera
+  camera.position.x = 0;
+  camera.position.y = 0;
+  camera.position.z = 20;
+  camera.lookAt(scene.position);
+}
 
-      // Camera
-      camera.position.x = 0;
-      camera.position.y = 0;
-      camera.position.z = 30;
-      camera.lookAt(scene.position);
+function initTerrain() {
+  var geometry = new THREE.PlaneGeometry(1, 1);
+  var object = new THREE.Mesh(geometry, materials.grass);
+  object.position.x = 0;
+  object.position.y = 0;
+  object.position.z = 0;
+  scene.add(object);
 
-      // Render
-      $("#gl-out").append(renderer.domElement);
-      renderer.render(scene, camera);
+  setInterval(function() {
+    object.position.x += 0.01;
+  }, 10);
+}
 
+function init() {
+  return loadTextures()
+    .then(function() {
+      console.log('Textures loaded');
+      initScene();
+    }).then(function() {
+      console.log('Scene initialized');
+      initTerrain();
+    }).then(function() {
+      console.log('Terrain initialized');
     });
 }
 
-function run() {
-  initScene();
-
-
+function loop() {
+  requestAnimationFrame(loop);
+  renderer.render(scene, camera);
 }
 
-$(run());
+$(function() {
+  init().then(function() {
+    loop();
+    console.log('Render loop started');
+  });
+});
